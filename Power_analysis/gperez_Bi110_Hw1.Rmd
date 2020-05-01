@@ -1,0 +1,81 @@
+---
+title: "Homework 1: Power analysis"
+author: "Gera Perez"
+date: "10/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+
+#Eugene_commuters <- 65000
+Eugene_commuters <- 80000
+Eugene_commuting_miles <- 6.6
+nvals <- 10 * (2:200)
+
+spring_commuting_miles <- 3.97
+spring_commuters <- 30000
+
+
+props_Eugene <-rep(NA, length(nvals))
+Eugene_pop <-rexp(Eugene_commuters,(1/Eugene_commuting_miles))
+for (k in 1:length(nvals)) {
+  many_means <- replicate(1e3, mean(sample(Eugene_pop, nvals[k])))
+  props_Eugene[k] <- mean(abs(many_means - mean(Eugene_pop)) < .25)
+  #props_spring[k] <- mean(abs(many_means_spring - mean(spring_pop)) < 25)
+}
+
+props_spring <-rep(NA, length(nvals))
+spring_pop <-rexp(spring_commuters,(1/spring_commuting_miles))
+for (k in 1:length(nvals)) {
+  many_means <- replicate(1e3, mean(sample(spring_pop, nvals[k])))
+  props_spring[k] <- mean(abs(many_means - mean(spring_pop)) < .25)
+  #props_spring[k] <- mean(abs(many_means_spring - mean(spring_pop)) < 25)
+}
+
+
+p_values_length <- 10* (2:200)
+#p_values_length <- 10* (2:150)
+p_values <-rep(NA, length(p_values_length))
+spring_pop <-rexp(spring_commuters,(1/spring_commuting_miles))
+#pValues<-list()
+for (k in 1:length(p_values_length)) {
+  x <- replicate(1e3,  t.test(sample(spring_pop, p_values_length[k]), sample(Eugene_pop, p_values_length[k]))$p.value)
+  p_values[k]<-mean(x<0.05)
+}
+
+
+
+```
+
+
+In this report we aim to show a good estimate on a sample size that has a reasonable level of precision for a survey. The survey will randomly choose a collection of people with full-time work and be asked on their miles for commuting. The areas in Oregon for the survey are Eugene and Springfield. The interest in this survey is to find out the mean of number of miles traveled and if people travel longer distances due to living in a different city. Here we use a power analysis by simulation and use an exponential distribution for distances traveled to figure out how many people to ask to achieve good precision.
+
+ 
+To get a good estimate for an accurate mean of number of miles traveled in Eugene, we first looked on the Eugene Oregon geographical map. The United States Census Bureau states that Eugene has an area of 43.72 square miles. We figure that around the square root of this value, resulting to 6.6 miles, seems a reasonable distance to commute. So, we set our mean number of miles to be 6.6 miles. In addition, the United States Census Bureau states that the Eugene population in 2017 was 168,916. We figured that half of these individuals work and commute. So, we set our commuters to be 80000. Furthermore, we used this same approach for Springfield, 3.97 for the mean number of miles and 30000 for commuters. We used 200 sample sets that range from 20 to 2000. We then followed the power analysis simulation using exponential distribution.
+
+Using the parameters, for the Eugene commuter we got a confidence value around 0.9 as shown in Figure 1.  As for the Springfield, we got a confidence value around 1.0 as shown in Figure 2. These two values are very close to the true mean. In addition, we estimated the difference of these means between Eugene and Springfield at different sizes that had a p-value less than 0.5. We observed that around the sample size 150, the p-values confidence value plateaus around 1.0 as shown in Figure 3. Furthermore, from these results the sample size 150 should achieve good precision for the survey. 
+
+
+```{r, echo=FALSE}
+plot(nvals, props_Eugene, ylab='proportion of sample means within 6.6 miles', xlab='sample size', main='Figure 1: Eugene', ylim=c(0,1), col='green', pch=20, cex=2)
+abline(h=0.9)
+```
+
+```{r, echo=FALSE}
+plot(nvals, props_spring, ylab='proportion of sample means within 3.97 miles', xlab='sample size', main='Figure 2: Springfield', ylim=c(0,1), col='blue', pch=20, cex=2)
+abline(h=1)
+```
+
+
+
+
+```{r, echo=FALSE}
+plot(p_values_length, p_values, xlab='sample size', ylab='proportion of p-values', xlim=c(0,250), , main=" Figure 3: Difference in mean between Eugene vs Springfield \n with a p-value less than 0.05")
+abline(v=150)
+```
+
+References
+
+ "US Gazetteer files 2010". United States Census Bureau. Archived from the original on January 12, 2012. Retrieved December 21, 2012.
+
