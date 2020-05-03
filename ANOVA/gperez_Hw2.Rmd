@@ -1,0 +1,159 @@
+---
+title: "Homework 2: ANOVA"
+author: "Gera"
+date: "10/17/2019"
+output: html_document
+---
+
+
+In this report we explore the PanTHERIA dataset to make some observations. One question we are trying to address is does adult body size differ significantly between trophic levels: herbivore, carnivore, and omnivore. We also focus specifically on Order Rodentia to address this question. In addition, we use of the power T-test in R to find effective size to address a hypothesis.
+
+We first looked through the data to see the different taxomomy Orders in the data. Table 1 shows the list of the of taxonomy Orders. To further get a sense of the data distribution of the adult body mass data, we plotted using a histogram as shown in Figure 1. Since most of the data is heavily distributed at 0 and could not get a visual of the other distribution ranges, we did a log 10 transformation. Figure 2 shows this distribution. From Figure 2, we can see that most of the data lies in the ranges 1 to 4 grams. We then compared this data to the trophic levels: herbivore, carnivore, and omnivore using a box plot as shown in Figure 3. Herbivores shows to have the higher body size, then Omnivore followed by Carnivore. In addition, we did an Anova test and found P-value of 2.2e-16, Df=2, F-value=64.98, which rejects the null hypothesis. Which means that there is no difference in means and there is a significant difference. Furthermore, this dataset violates assumptions of ANOVA due to big differences in morphology and species in the dataset. In addition, the data is not normally distributed. That scope of the dataset is to big leading to a significant number of outliers. Also, due to evolutionary history, species vary in size and are highly nonindependent. 
+	To get a narrower observation, we explored the species in the Order Rodentia. Using a histogram, we saw similar distribution to our previous distrubution using the whole data set. Most of the distributions were found in the range 1 to 4 grams. Figure 4 shows the histogram.  Also, we saw similar results comparing Rodentia adult body mass to trophic levels. Herbivores the highes body size, then Omnivore followed by Carnivore. Using, ANOVA, we found P-value of 1.354e-15, Df=2, F-value=36.369 which rejects the null hypothesis. The dataset violates assumptions of ANOVA through the same reasoning previously discussed. Furthermore, since the subset of the dataset was consistent in results, we can use this dataset to explore differences in mean size in adult mice body sizes by dietary protein. Our hypothesis is that mice that eat animal protein will have a greater adult body mass than mice that eat no animal protein. To address this question, we need to identify an effect size. By the use of the power T-test in R and the use of this data set, we found that effective size could of 645. We tried to use a power analysis, by using the means of herbivores and means carnivores from this data set, as true means to do perform normal distributions. In addition, multiplying the mean .1 and dividing by 3 to address the 20% vary in size. Due to time we were not able to finish this powers analysis. 
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+setwd("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Datasets/PanTHERIA")
+set.seed(23)
+library(matrixStats)
+library(tidyverse)
+library(dplyr)
+read_pantheria <- function(dirname) {
+    pantheria <- read.table(file.path(dirname, "PanTHERIA_WR05_mammals.txt"),
+                            header=TRUE, check.names=FALSE, stringsAsFactors=FALSE, sep="\t")
+    names(pantheria) <- gsub("^MSW05_", "", gsub("^[0-9-]*_", "", names(pantheria)))
+    pantheria$Order <- factor(pantheria$Order)
+    pantheria$Family <- factor(pantheria$Family)
+    pantheria$Genus <- factor(pantheria$Genus)
+    translations <- list(ActivityCycle = c("nocturnal", "crepuscular", "diurnal"),
+                         Terrestriality = c("fossorial", "ground_dwelling"),
+                         TrophicLevel = c("herbivore", "omnivore", "carnivore"))
+    for (col in names(pantheria)) {
+        a <- pantheria[[col]]
+        if (is.numeric(a)) {
+            a[a == -999] <- NA
+        }
+        if (col %in% names(translations)) {
+            a <- factor(translations[[col]][a], levels=translations[[col]])
+        }
+        pantheria[[col]] <- a
+    }
+    return(pantheria)
+}
+
+pantheria <- read_pantheria("//Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Datasets/PanTHERIA")
+
+Rodentia_data<-subset(pantheria, pantheria$Order=="Rodentia")
+
+#3a.
+#True mean difference
+herbivore_data <- subset(Rodentia_data, Rodentia_data$TrophicLevel=='herbivore', select=c(TrophicLevel,AdultBodyMass_g))
+carnivores_data <- subset(Rodentia_data, Rodentia_data$TrophicLevel=='carnivore', select=c(TrophicLevel,AdultBodyMass_g))
+
+herb_mean<-mean(herbivore_data $AdultBodyMass_g, na.rm = TRUE)
+carn_mean<-mean(carnivores_data$AdultBodyMass_g, na.rm = TRUE)
+herb_sd<-sd(herbivore_data $AdultBodyMass_g, na.rm = TRUE)
+carn_sd<-sd(herbivore_data $AdultBodyMass_g, na.rm = TRUE)
+sd_dual<-sqrt((herb_sd)^2 +(carn_sd)^2)
+x<-power.t.test(NULL,abs(herb_mean-carn_mean), sd_dual, sig.level = .05,.9)
+#645
+
+
+  
+  
+  nvals <- 10*(2:200)
+  
+  props_herb <-rep(NA, length(nvals))
+  herb_pop <-rnorm(3E5, mean=herb_mean,sd=(herb_mean*.1/3))
+  
+  
+  props_carn <-rep(NA, length(nvals))
+  carn_pop <-rnorm(3E5, mean=carn_mean,sd=(carn_mean*.1/3))
+  
+  
+  
+  p_values_length <- 2*(2:200)
+  p_values <-rep(NA, length(p_values_length))
+  #for (k in 1:length(p_values_length)) {
+    #x <- replicate(1000,  t.test(sample(herb_pop, p_values_length[k]), sample(props_carn, p_values_length[k]),paired = TRUE)$p.value)
+    #p_values[k]<-mean(x<0.05)
+  #}
+
+
+```
+Table 1
+```{r echo=FALSE}
+(levels(pantheria$Order)) 
+```
+
+
+```{r echo=FALSE}
+
+hist(pantheria$AdultBodyMass_g, main = "Figure 1: Adult Body Mass", col="green", xlab="grams")
+```
+
+
+
+```{r echo=FALSE}
+hist(log10(pantheria$AdultBodyMass_g), main =  "Figure 2: Adult Body Mass log10 transformed", col="green", xlab="grams" )
+
+
+```
+
+
+
+
+
+
+
+```{r echo=FALSE}
+plot(pantheria$TrophicLevel, log10(pantheria$AdultBodyMass_g), ylab="Adult Body Mass", xlab="Trophic levels", main=("Figure 3:Body mass vs trophic levels")) 
+```
+
+```{r echo=FALSE}
+anova(lm(log10(AdultBodyMass_g) ~ TrophicLevel, data=pantheria)) 
+```
+
+
+```{r echo=FALSE}
+hist(log10(Rodentia_data$AdultBodyMass_g), main = "Figure 4: Rodentia Adult body mass",  col="blue", ylim=c(0,600), xlim=c(0,8), xlab="grams" )
+```
+
+
+```{r echo=FALSE}
+plot(Rodentia_data$TrophicLevel, log10(Rodentia_data$AdultBodyMass_g), ylab="Rodentia Adult Body Mass", xlab="Trophic levels", main=("Figure 5: Rodentia \nBody mass vs trophic levels"))
+```
+
+
+```{r echo=FALSE}
+anova(lm(log10(AdultBodyMass_g) ~ TrophicLevel, data=Rodentia_data))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
