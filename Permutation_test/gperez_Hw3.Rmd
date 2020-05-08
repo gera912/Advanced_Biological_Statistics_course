@@ -1,0 +1,69 @@
+---
+title: "Homework 3: Testing for heterogeneity"
+author: "Gera"
+date: "10/18/2019"
+output: html_document
+
+
+
+
+---
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(data.table)
+
+
+setwd("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks")
+flu_data <- read.table("flu.tsv", header=TRUE)
+
+
+
+piped_data <- flu_data %>% group_by(strain, genotype) %>% summarise(StrainMean = mean(response)) %>% group_by(genotype) %>% summarise(sdMean = sd(StrainMean)) %>% summarise(mean(sdMean, na.rm = TRUE))
+
+shuffled_data <- replicate(1000,{
+  rep_shuff <- flu_data %>% group_by(genotype) %>% mutate(shuffled_responses = sample(response)) %>% group_by(strain, genotype) %>% summarise(StrainMean = mean(shuffled_responses)) %>% group_by(genotype) %>% summarise(standard_devs = sd(StrainMean))
+  mean(rep_shuff$standard_devs) 
+})
+
+
+
+
+
+
+
+
+```
+
+Studies have shown that immune response differed by genotype from an immune-regulating gene. In this report we use statistics to explore whether the mean strength of immune response differs by flu strains. The Immune response hear was measured using interleukin-1β. In addition, we also explore if strains tend to induce stronger or weaker responses. 
+	Using the data provided we created an interaction plot to link the mean response to flu strain of a specific genotype as shown in Figure 1.  According to the figure, we can definitely see that the immune response differs by flu strain through looking at the mean strength. The genotype D31 shows more mean strength of immune response compared to C46 and E4 genotypes. A1b/165Q showed the most immune response out of all the strains. But overall, the A1b/178V strain showed the most strength of immune response relatively in all three genotypes and A1b/156M was the weakest. 
+	We then did a permutation test to see if the distribution of the test statistic using the null hypothesis is observed thru calculating all possible values by rearrangements of labels on the data points. We shuffled the data, standard deviation of strain means, and repeated 1000 times.  We were able to see by controlling the genotype, that there is a highly significant immune response mean difference by strain as shown in Figure 2. Furthermore, we then use an ANOVA test to see if there Is a mean difference immune response between strains and genotypes since the ANOVA test compares the mean difference. The ANOVA test showed that strains and genotypes are independently more powerful than strain*genotype. From both sets of results, both strain and genotype play strong roles individually and it’s not due to a compound effect.
+
+```{r echo=FALSE}
+ggplot(data =flu_data, aes(x = flu_data$strain, y = flu_data$response, colour = genotype,
+                           group=genotype)) +
+  geom_point()  + labs(title="Figure 1: Immune response by strain and genotype", x="strain", y="Immune response") +
+  stat_summary(fun.y=mean, geom="line")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+
+
+```{r echo=FALSE }
+
+ggplot() + geom_histogram(aes(x=shuffled_data), binwidth=0.1) + labs(title="Figure 2: Standard deviation of strain means, averaged across genotypes", x="strain", y="Immune response")+ scale_x_continuous(name = "Standard deviation of strain means, averaged across genotypes") +geom_vline(xintercept=piped_data$`mean(sdMean, na.rm = TRUE)`, color = "red") 
+
+
+```
+```{r echo=FALSE}
+print("Table 1")
+```
+
+```{r echo=FALSE}
+anova(lm(response ~ strain * genotype, data=flu_data))
+
+```
+
+`
