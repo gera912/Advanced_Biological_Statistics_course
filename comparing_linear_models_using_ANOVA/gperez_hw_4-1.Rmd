@@ -1,0 +1,90 @@
+---
+title: "Homework 4: Multiple regression"
+author: "Gera"
+date: "12/13/2019"
+output: html_document
+
+---
+
+
+In this report we want to investigate how the hormone IGF-1 in mice, is related to the differences in length with the association of other factors such as weight, maturity, age and sex. Researchers have studied how levels of IGF-1 have affected early growth and have measured IGF-1 levels along with other factors. Here we first explore the data by plotting the points in a scatter plot as shown in Figure 1. From the graph, we can infer that maturity plays a role in increase IGF and increase length response. Next, we can see a similar trend with age.  We could not see any patterns with sex, sex seems to be distributed evenly throughout the whole plot.
+	
+
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(tidyverse)
+library(GGally)
+
+setwd("/Users/gerardoperez/documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks")
+Igf_data <- read.table("igf.tsv", header=TRUE)
+Igf_data<-na.omit(Igf_data)
+```
+
+```{r echo=FALSE,  fig.align = 'center' }
+
+
+igf_plot <- ggplot(Igf_data, 
+                   mapping=aes(x=igf, 
+                               y=length)) + ggtitle("Figure 1: Hormone IGF-1 response vs length of mice with age, maturity and sex factors") + xlab("IGF") + ylab("Length") + geom_point(aes(color=age, size=maturity, shape=sex)) + theme()
+print(igf_plot)
+
+```
+
+We continued to explore the data and followed by performing a paired graph as shown in Figure 2. We first find the plot that has both length and Igf levels. We can see that the scatter plot gives us a correlation of 0.621. We also see the length and age gives us a correlation of 0.882. Age and igf gives a correlation of 0.528. For weight and age a correlation of 0.736, For weight and length a correlation of 0.867. We can also see that sex does not make much of a difference in this data as well.
+
+
+```{r echo=FALSE,  warning=FALSE,  fig.align = 'center'}
+ggpairs(data=Igf_data, 
+        title="Figure 2: IGF-1 response in mice with length, age, weight, maturity, sex factors", 
+        colour = "sex")
+
+```
+
+
+From the figures we apply from what we observe and build a linear model. We first started with the mean of length dependent on igf, then we added independently weight to the linear model. We then nested by adding weight, adding age and subtracting weight to avoid the double up on weight. Finally, we nested another linear model, by adding maturity with weight but subtracting weight to avoid the double up on weight. The completed nested anova is shown in Table 1. The residual sum of squares which indicates a tight fit, shows a value 6277 and a resulted p-value of 0.01006 which is significant. To improve this linear model we swapped out age with maturity starting at the third model of the nested anova as shown in Table 2. This change kept the same 6277 RSS value but made the p-value to 2.2e-16, more significant. From this result, we can see that maturity has more of an impact than age which results to being more significant. 
+
+
+**Table 1**
+```{r echo=FALSE,  fig.align = 'center'}
+anova(
+      lm(length ~ igf, data=Igf_data),
+      lm(length ~ weight+ igf, data=Igf_data),
+      lm(length ~ weight + igf + (weight*age- weight), data=Igf_data),
+      lm(length ~ weight * igf + (weight*age- weight) + (weight*maturity - weight), data=Igf_data)
+)
+
+```
+
+**Table 2**
+```{r echo=FALSE,  fig.align = 'center'}
+anova(
+      lm(length ~ igf, data=Igf_data),
+      lm(length ~ weight+ igf, data=Igf_data),
+      lm(length ~ weight + igf + (weight*maturity- weight), data=Igf_data),
+      lm(length ~ weight * igf + (weight*maturity- weight) + (weight*age - weight), data=Igf_data)
+)
+
+
+```
+
+
+
+To further explore this linear model, we plot the linear model residuals with a qqplot as shown in Figure 3. From the plot, we can see that the residuals of the model fit the line, indicating that the standardized residual has a normal distribution. In addition, we plotted residual vs fitted plot that shows the regression line positioned at zero. This is shown in Figure 4. We can see that the residual points are scattered positives and negatives indicating that the points are at equal variance and that it is a good linear model. 
+
+```{r echo=FALSE,  fig.align = 'center'}
+plot(lm(length ~ weight * igf + (weight*age- weight) + (weight*maturity -weight), data=Igf_data), which=2, main = "Figure 3:")
+
+```
+`
+
+```{r echo=FALSE,  fig.align = 'center'}
+
+plot(lm(length ~ weight * igf + (weight*age- weight) + (weight*maturity -weight), data=Igf_data), which=1, main = "Figure 4:")
+```
