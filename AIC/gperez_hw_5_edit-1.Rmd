@@ -1,0 +1,203 @@
+---
+title: "Homework 5: Mixed Effects Models"
+author: "Gera"
+date: "11/07/2019"
+output: html_document
+
+---
+
+
+In the University of Oregon, research in invasive aquatic plant (variable-leaf watermilfoil) has been a focus of study. Specifically, Hannah MSc research involves evaluating the growth characteristics of three genetic lineages of an invasive aquatic plant (variable-leaf watermilfoil)  across 21 lakes. The study was to investigate whether the hybrid lineage (HYB) grows more aggressively than the parental lineages (CON and ACP). Her data consists of plant growth and environmental data obtained from 2-3 100m transects randomly placed in each lake. In addition, the data also consists of three metrics of growth: average dry mass per plant (Dry_Mass_per_Plant_g), average total branch count(Total_Branches_per_Plant), and density of individual plants per square meter (Density_per_m2). In this report we look at the data to  describe the growth metrics by lineage, fit linear models, add random effect to the suggested model, and compare better fit linear or mixed effects.
+
+We first started by looking at the data. Here we are comparing growth metrics by lineage as shown in Figure 1. We can see a consistency in growth both dry mass per plant and total branch count. The Hyb being the lineage with the most growth followed by ACP and then the CON lineage. But in the Density M2 metric we see the opposite, the CON was the lineage with the most growth followed by ACP then the HYB lineage.
+	
+We then followed by finding a fit linear model to test whether environmental parameters (Dissolved_O2, Temperature, Conductivity, Alkalinity, or pH) are important covariates. We explored using AIC, which compares log-likelihoods of successive models. Table 1 shows the AIC output of dry mass per plant. From the result we can see a consistency  of Figure 1 through the coefficients. The Hyb having the highest coefficient, ACP not showing, possibly meaning not a factor or 0 ,and Con being negative. Table 2 measuring the total branches per plant , shows a similar result with a much higher Hyb coefficient. Measuring density M2 showed the opposite result which is consistent to Figure 1. The higher the positive coefficient predicts a positive change. According to this result using environmental parameters, Hyb lineage of variable-leaf watermilfoil grows more aggressively than the parental lineages in dry mass per plant and total branch count but not in density M2.
+
+We then added a random effect for Lake in our final models. Table 4 shows the final model for dry mass per plant from Table 1 and showed a little difference in coefficients but did not show a different result. Table 5 shows total branch count and Table 6 shows density M2 with both having the random effect for Lake to the final models. Both did not show different result as well. In addition, we tested if the random model improved the fit of the model using a model comparison method. There was not much of a difference. For example, in dry mass per plant, the AIC for the linear model was 417.17 and the added random effect was 418.28 not much of a difference.  For total branches per plant and density per M2, we saw a similar trend, not much of a difference. But if we have to decide the better model, than the linear model is better due to having a lower AIC than the model with the random effect of lake. In Figure 2 we illustrate through plots for dry mass per plant, total branch count and density M2 the result of variation of random effect for Lake. Through the plots we can see that almost all interval contains zero indicating that the lake random effect does not affect the results. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+
+
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(tidyverse)
+library(GGally)
+library(MASS)
+library(lme4)
+
+setwd("/Users/gerardoperez/documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks")
+dataset <- read.csv("Tavalire_et_al_2012_field_data_for_ABS.csv", header=TRUE)
+dataset<-na.omit(dataset)
+head(dataset)
+```
+
+```{r echo=FALSE }
+
+```
+
+```{r echo=FALSE }
+
+
+```
+
+
+
+**Figure 1: Lineages vs Growth Metrics**
+
+```{r echo=FALSE }
+par(mfrow=c(1,3))
+plot(dataset$Dry_Mass_per_Plant_g ~ dataset$Lineage, xlab="Lineage", ylab="Dry_Mass_per_Plant_g", )
+plot(dataset$Total_Branches_per_Plant ~ dataset$Lineage, xlab="Lineage", ylab="Total_Branches_per_Plant")
+plot(dataset$Density_per_m2 ~ dataset$Lineage, xlab="Lineage", ylab="Density_per_m2")
+
+```
+
+
+
+
+**Table 1: Dry_Mass_per_Plant_g AIC**
+
+```{r echo=FALSE}
+stepAIC(lm(Dry_Mass_per_Plant_g ~ Lineage+ Dissolved_O2 + Temperature + Conductivity + Alkalinity + pH, dataset),direction="backward")
+
+```
+
+
+**Table 2: Total_Branches_per_Plant AIC**
+
+```{r echo=FALSE}
+
+
+
+stepAIC(lm(Total_Branches_per_Plant ~ Lineage + Dissolved_O2 + Temperature + Conductivity + Alkalinity + pH, dataset),direction="backward")
+
+
+
+
+
+```
+
+**Table 3: Density_per_m2 AIC**
+
+```{r echo=FALSE }
+stepAIC(lm(Density_per_m2 ~ Lineage +Dissolved_O2 + Temperature + Conductivity + Alkalinity + pH, dataset),direction="backward")
+
+```
+
+
+**Table 4: Dry_Mass_per_Plant_g final model with random effect for Lake**
+
+```{r echo=FALSE}
+
+lmer(formula = Dry_Mass_per_Plant_g ~ Lineage + Dissolved_O2 + 
+    Alkalinity + pH +(1|Lake), data = dataset)
+
+
+```
+
+**Table 5:Total_Branches_per_Plant final model with random effect for Lake**
+```{r echo=FALSE}
+
+
+lmer(formula = Total_Branches_per_Plant ~ Lineage + Dissolved_O2 + 
+    Temperature + Alkalinity + pH+ (1 | Lake), data = dataset)
+
+
+
+```
+
+**Table 6: Density_per_m2 final model with random effect for Lake**
+
+```{r echo=FALSE}
+
+lmer(formula = Density_per_m2 ~ Lineage + Conductivity + (1 | Lake), data = dataset)
+
+```
+
+
+
+```{r echo=FALSE, include=FALSE}
+
+anova(lmer(formula = Dry_Mass_per_Plant_g ~ Lineage + Dissolved_O2 + 
+    Alkalinity + pH + (1 | Lake), data = dataset),
+    lm(formula = Dry_Mass_per_Plant_g ~ Lineage + Dissolved_O2 + 
+    Alkalinity + pH, data = dataset))
+
+```
+
+
+```{r echo=FALSE, include=FALSE}
+
+anova(lmer(formula = Total_Branches_per_Plant ~ Lineage + Dissolved_O2 + 
+    Temperature + Alkalinity + pH+ (1 | Lake), data = dataset),
+    lm(formula = Total_Branches_per_Plant ~ Lineage + Dissolved_O2 + 
+    Temperature + Alkalinity + pH, data = dataset))
+
+```
+
+
+```{r echo=FALSE, include=FALSE}
+
+anova(lmer(formula = Density_per_m2 ~ Lineage + Conductivity + (1 | Lake), data = dataset),
+    lm(formula = Density_per_m2 ~ Lineage + Conductivity, data = dataset))
+
+```
+
+**Figure 2: Three growth metrics with random effect as a source of variation plot**
+```{r echo=FALSE}
+par(mfrow=c(1,3))
+mixed1 <- lmer(formula = Dry_Mass_per_Plant_g ~ Lineage + Dissolved_O2 + Alkalinity + 
+    pH + (1 | Lake), data = dataset)
+rfs <- ranef(mixed1)$Lake
+rord <- rank(rfs)
+ses <- rfs[,1] + outer(sqrt(as.vector(attr(rfs, "postVar"))), c(-2, 2), "*")
+plot(rfs[,1], rord, xlim=range(ses), ylab='',
+     xlab='Dry_Mass_per_Plant_g')
+segments(x0=ses[,1], x1=ses[,2], y0=rord)
+abline(v=0, col='red')
+
+mixed2 <- lmer(formula = Total_Branches_per_Plant ~ Lineage + Dissolved_O2 + Alkalinity + 
+    pH + (1 | Lake), data = dataset)
+rfs <- ranef(mixed2)$Lake
+rord <- rank(rfs)
+ses <- rfs[,1] + outer(sqrt(as.vector(attr(rfs, "postVar"))), c(-2, 2), "*")
+plot(rfs[,1], rord, xlim=range(ses), ylab='',
+     xlab='Total_Branches_per_Plant')
+segments(x0=ses[,1], x1=ses[,2], y0=rord)
+abline(v=0, col='red')
+
+
+mixed3 <- lmer(formula = Density_per_m2 ~ Lineage + Conductivity + (1 | Lake), data = dataset)
+rfs <- ranef(mixed3)$Lake
+rord <- rank(rfs)
+ses <- rfs[,1] + outer(sqrt(as.vector(attr(rfs, "postVar"))), c(-2, 2), "*")
+plot(rfs[,1], rord, xlim=range(ses), ylab='',
+     xlab='Density_per_m2')
+segments(x0=ses[,1], x1=ses[,2], y0=rord)
+abline(v=0, col='red')
+```
+
+
+
+
+
+
+
+
+```
