@@ -1,0 +1,151 @@
+---
+title: "Homework 6: The Mystery Coins"
+author: "Gera"
+date: "11/13/2019"
+output: html_document
+---
+
+
+
+In this report we use the Beta distribution that has two parameters, a and b, to infer a distribution of theta values. Here we use a dataset that consists of 100 old coins with strange shapes that were flipped: some number of times, some more, and some less. The data given has this data one row per coin. With the use of R programming, we will describe the data, find the maximum posterior estimate for the parameters alpha and beta of the Beta distribution that describes the theta across coins, and use our estimated values of alpha and beta to make a plot.
+
+The data given was inputted into R-studio and formatted. Using R, we plotted the data to get a visual sense of the outcome of the 100 coins as shown in Figure 1. The figure shows a bar graph that has  heads counts stack on top of tails counts for each coin. From the figure, we can see that the coin has a bias towards heads more than tails and the number of flips varies across coins. In addition, we also did statistics on this dataset as shown in Table 1. Table 1 shows the mean for heads was 5.27 and mean for tails was 3.04. The median for heads was 4.50 and the median for tails was 3.0. This further confirms that coins had a bias towards heads compared to tails. We also did statistics on the proportion of heads and had a mean of 0.6217. We also plotted the distribution of proportion of heads shown in Figure 2. 
+
+We then found the maximum posterior estimate for the parameters alpha and beta of the Beta distribution that describes the theta across coins. This was accomplished by making a plot of the likelihood surface by evaluating the log-likelihood across a grid of values of alpha and beta. We used a matrix grid of 200 by 200. We then used a set of alpha 1 to 20 and a beta of set 1 to 20. Then, we made a function that calculates the loglikelihood. Using these conditions, we ran a nested for loop to get the loglikelihood values. Using the contour function in R with our values, we outputted an image that displays the maximum area in a multidimensional space as shown in Figure 3.  Each value point is the loglikelihood in the heatmap. Using R’s function, which(), we found the max peak to get the optimal alpha and beta. Our alpha resulted to be 2.62 and our beta resulted to be 1.57. 
+
+Using our optimal alpha and beta, we plotted the Beta distribution with a sample size of 1000 as shown in Figure 4. The beta distribution values on the x-axis correspond to the probability of flipping a head across all flips. From this plot we can infer that the distribution is shifting to the right. When we overlapped the distribution of proportion of heads from Figure 2, we can see a consistency of a bias towards heads and both distributions shifting towards the right. Suggesting that the bag of coins has a bias towards heads.
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(reshape)
+
+
+setwd("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks")
+dataset <- read.table("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/coin_flips.txt", header = F, stringsAsFactors = F)
+
+  
+lines<-(readLines("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/coin_flips.txt"))
+trials<-strsplit(lines, '\t') 
+
+heads<-list()
+tails<-list()
+flips<-list()
+props_heads<-list()
+
+for (i in trials){
+  H_strings<-gsub("T","",i)
+  num_H<-nchar(H_strings)
+  num_char<-nchar(i)
+  num_T<-nchar(i)-nchar(H_strings)
+  heads<-append(heads, num_H)
+  tails<-append(tails, num_T)
+  flips<-append(flips, num_char)
+  props_heads<-append(props_heads, num_H/num_char)
+}
+
+new_dataset<-as.data.frame(cbind(unlist(heads),unlist(tails),unlist(flips),unlist(props_heads)))
+
+colnames(new_dataset)<-c("heads","tails","flips", "proportion_of_heads")
+
+
+
+
+n<-unlist(new_dataset$flips, use.names=FALSE)
+k<-unlist(new_dataset$heads, use.names=FALSE)
+
+size<-20
+
+z<-matrix(, nrow=size*10, ncol=size*10)
+alpha<-seq(1,size, length.out =size*10)
+beta<-seq(1,size, length.out = size*10)
+
+
+loglike <- function(params, n, k){
+    return(sum(lchoose(n, k) + lbeta(params[1] + k, params[2] + (n-k)) - lbeta(params[1], params[2])))
+}
+
+for (i in 1:(size*10)) {
+    for (j in 1:(size*10)){
+        z[i,j] <- loglike(c(alpha[i], beta[j]),new_dataset$flips,new_dataset$heads)
+    }
+}
+
+#image(alpha,beta,z)
+#contour(alpha, beta, z, add=TRUE, nlevels = 30)
+
+index<-which(z==max(z),arr.ind = TRUE)
+
+alpha1<-alpha[index[1]]
+
+beta1<-beta[index[2]]
+
+
+
+
+```
+
+
+
+```{r}
+
+
+x<-seq(1:length(rownames(new_dataset)))
+to_plot <- data.frame(x=x,heads=new_dataset$heads,tails=new_dataset$tails)
+melted<-melt(to_plot, id="x")
+
+print(ggplot(melted,aes(x=x,y=value,fill=variable)) + geom_bar(stat="identity", alpha=.5)+ labs(title="Figure 1:The flips outcome of 100 different coins ", x="coin number", y="flips")+ scale_x_continuous(breaks = seq(0, 100, by = 5))+scale_y_continuous(breaks = seq(0, 25, by = 1)))
+
+
+
+```
+
+**Table 1: Statistics on flips outcome of 100 different coins.**
+```{r}
+
+summary(new_dataset) 
+
+```
+
+
+```{r echo}
+
+
+
+x<-new_dataset$proportion_of_heads
+prop_heads<-new_dataset$proportion_of_heads
+h<-hist(x, xlab="proportion of heads", main = "Figure 2: The frequency distrubution of proportion of heads" )
+hist(prop_heads, xlab="proportion of heads", main = "Figure 2: The frequency distrubution of proportion of heads" )
+xfit<-seq(min(x),max(x),length=40) 
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x)) 
+yfit <- yfit*diff(h$mids[1:2])*length(x) 
+#lines(xfit, yfit, col="red", lwd=2)#
+
+```
+
+
+**Figure 3: Contour alphas and Betas**
+```{r echo=FALSE}
+
+image(alpha,beta,z)
+contour(alpha, beta, z, add=TRUE, nlevels = 30)
+
+```
+
+
+```{r echo=FALSE}
+
+
+x<-seq(0,1,length.out = 100)
+plot(x, dbeta(x, alpha1, beta1)*10, type="l", ylim=c(0,20),xlab="proportion of heads", ylab="Frequency", main="Figure 4: Plotting Beta distribution with optimal alpha and beta plus \n the frequency distrubution of proportion of heads" )
+hist(prop_heads, add=TRUE, main = "Figure 4: The frequency distrubution of proportion of heads")
+
+
+
+
+```
