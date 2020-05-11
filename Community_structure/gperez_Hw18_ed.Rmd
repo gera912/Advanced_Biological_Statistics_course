@@ -1,0 +1,163 @@
+---
+title: "Homework, week 18: Community structure"
+author: "Gera"
+date: "3/4/2020"
+output: html_document
+---
+
+
+In this report we explore a dataset from a decomposition experiment that consists of abundances of 40 microbial taxa, measured at 100 times (by 16S transcript counts). We want to investigate whether there are groups that change in abundance together. This can be due from groups of taxa depending on each other for metabolic byproducts or they are all responding to an underlying variable that we are not observing.  We approached this by fitting a model,  finding the maximum posterior, analyzing the abundances of each cluster of taxa against time, and  analyzing the abundances of each taxon in the three communities.
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+
+library(ggplot2)
+library(tidyr)
+
+library(rstan)
+
+library(randomcoloR)
+n <- 20
+palette <- distinctColorPalette(n)
+
+
+dataset<-read.csv("file:///Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/taxon_counts.csv", header=TRUE)
+
+
+
+```
+
+
+We first explore the dataset by doing statistics on the sample number and time. The sample number ranges from 1 to 100 and time ranges from 0.014 to 0.979. As shown in Table 1.
+
+**Table 1: statistics on sample number and time from dataset**
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+summary(dataset[,1:2])
+
+```
+
+We then explored the transcript counts for each taxon and plotted them as shown in Figure 1.
+
+
+**Figure 1: Transcript counts for each taxon**
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, fig.height=10, fig.width=20}
+
+boxplot(dataset[,3:ncol(dataset)], col=distinctColorPalette(ncol(dataset-3)), ylab="Transcript counts")
+```
+
+We can see that the taxon rdvp has the most transcript counts with the median being 166. Also, we see the gyhe has the lowest transcript counts with the median being 20. In addition, wgtt had the longest range of transcript counts from 6 to 205.
+
+To make the model we used a stan model using R, where we let the data variables be number of samples, number of taxa, number of clusters, and transcript counts for each taxon. As for parameters, we let x be the mean abundance of each taxon, w be the k-simplex set proportions, eta be the standard deviation of prior of x, and alpha be a prior set as normal prior.  Since the data here is measured as taxon counts and positive whole numbers, we used a poisson distribution. In addition, we used a Dirichlet prior (conjugate prior) due to the data being a multinomial distribution from 40 taxons and using simplex proportions.
+Running the model, we set the clusters to be 3 and using Stan in R we used the optimizing function to get the maximum posterior estimates. 
+	To answer whether relative contributions of the three communities change over time,  we plotted abundances estimates for each cluster of taxa against time as shown in Figure 2.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, cache=TRUE }
+nmf_model <- stan_model(model_code="
+    data {
+      int N; // # samples
+      int L; // # taxa
+      int K; // # clusters
+      int Z[N,L];
+    }
+    parameters {
+      matrix<lower=0>[L,K] x;
+      vector[L] y;
+      simplex[K] w[N];
+      real<lower=0> eta;
+      vector<lower=0>[K] alpha;
+      real<lower=0> d_alpha;
+    }
+    model {
+      for (i in 1:N) {
+          Z[i] ~ poisson(x * w[i]);
+          w[i] ~ dirichlet(d_alpha * alpha);
+      }
+      for (j in 1:K) 
+          { x[,j] ~ normal(y, eta); }
+      y ~ normal(0, 20);
+      alpha ~ normal(0, 1);
+      d_alpha ~ exponential(0.2);
+      eta ~ normal(0, 10);
+    }
+    ")
+
+
+
+the_vars<-colnames(dataset)[3:ncol(dataset)]
+
+model_fit <- optimizing(nmf_model,
+                      data=list(N=nrow(dataset),
+                                L=length(the_vars),
+                                K=3,
+                                Z = dataset[,the_vars]))
+
+
+opt_w <- model_fit$par[grepl("^w", names(model_fit$par))]
+
+
+
+
+cluster_df<-data.frame(time=dataset$time,community_1= opt_w[1:100], community_2=opt_w[101:200], community_3=opt_w[201:300] )
+
+
+```
+
+```{r,echo=FALSE,  message=FALSE, warning=FALSE}
+plot(cluster_df$time, cluster_df$community_1,  col = "red" , xlab="Time", ylab="Community composition", ylim=c(0,1), type="l", main="Figure 2: Community composition across time ")
+lines(cluster_df$time, cluster_df$community_2, col = "blue" )
+lines(cluster_df$time, cluster_df$community_3, col = "green" )
+legend("topleft",legend=c("Community 1","Community 2","Community 3"), col=c("red","blue", "green"),  lty=1:2, cex=0.8)
+
+
+
+
+```
+
+Figure 2 shows that all three communities differ over time. Community 1 composition increases over time to a max peak of 0.78 composition. Community 2 composition decreases over time from a max peak of 0.77 composition. Community 3 composition increases about half the time to a max peak of 0.77 then decreases the other half. 
+
+
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+opt_x <- model_fit$par[grepl("^x", names(model_fit$par))]
+(opt_x)
+
+Eta <- model_fit$par[grepl("^eta", names(model_fit$par))]
+
+
+
+
+
+taxa_df<-data.frame(community_1= opt_x[1:40]*Eta, community_2=opt_x[41:80]*Eta, community_3=opt_x[81:120]*Eta )
+
+```
+
+Furthermore, to answer whether communities differ, we made a plot showing the abundances of each taxon in the three communities as shown in Figure 3. 
+
+**Figure 3: Abundances of each taxon in the three communities**
+
+
+```{r,  message=FALSE, warning=FALSE, echo=FALSE}
+layout(1:4)
+par(mar=c(0,10,0,0))
+plot(taxa_df$community_1, xaxt="n", xlab="", type="l", col = "red", ylab="Abundances", ylim=c(0, 20000))
+legend("topleft",legend=c("Community 1","Community 2","Community 3"), col=c("red","blue", "green"),  lty=1:2, cex=0.8)
+axis(1, at=1:length(the_vars), labels=the_vars, las=3)
+plot(taxa_df$community_2, xaxt="n", xlab="", type="l", col = "blue", ylab="Abundances", ylim=c(0, 20000))
+axis(1, at=1:length(the_vars), labels=the_vars, las=3)
+plot(taxa_df$community_3, xaxt="n", xlab="", type="l", col = "green", ylab="Abundances", ylim=c(0, 20000))
+axis(1, at=1:length(the_vars), labels=the_vars, las=3)
+
+
+
+
+```
+
+Figure 3 shows that that 3 communities are very similar but vary on a specific taxon that is exclusive to that community. Community 2 had the more exclusive abundances of taxon compared to Community 1 and Community 3. In Community 2, the taxons: venl osap, izlq, dkvd, uynr, deoz, wed,  and srvz; where more exclusively abundant. Where Community 3 had taxons: dxpc, xjsl, dmlh, and hvkf; more exclusively abundant. As for Community 1, voza was the only abundant taxon. But other then that, communities appear very similar. 
+
+Ultimately, we do need to perform more experiments in order to determine why different communities are fluctuating overtime and also to figure out why most of the communities appear so similar. 
