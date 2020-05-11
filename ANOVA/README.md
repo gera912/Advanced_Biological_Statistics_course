@@ -1,4 +1,4 @@
-The problem
+### The problem
 You’ll be looking at the PanTHERIA dataset, which is
 … a global species-level data set of key life-history, ecological and geographical traits of all known extant and recently extinct mammals (PanTHERIA) developed for a number of macroecological and macroevolutionary research projects.
 Metadata is available at the Ecological Archives, and (along with some hints about how to load it appropriately) is included in this repository, here.
