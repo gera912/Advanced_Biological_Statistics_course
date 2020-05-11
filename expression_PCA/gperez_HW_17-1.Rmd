@@ -1,0 +1,184 @@
+---
+title: "Homework, week 17: Expression PCA"
+author: "Gera"
+date: "2/27/2020"
+output: html_document
+---
+
+
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rstan)
+library(matrixStats)
+
+#exp_data<-read.table("file:///Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Datasets/stickleback_GFvsCV_RNAseq/CVvsGF_RNAseq_CPM.tsv", sep='\t', header=TRUE)
+
+
+#meta_data<-read.table("file:///Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Datasets/stickleback_GFvsCV_RNAseq/CVvsGF_RNAseq_Metadata.tsv", sep='\t', header=TRUE)
+
+exp_data<-read.delim("file:///Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Datasets/stickleback_GFvsCV_RNAseq/CVvsGF_RNAseq_CPM.tsv", sep='\t', header=TRUE)
+
+meta_data<-read.delim("file:///Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Datasets/stickleback_GFvsCV_RNAseq/CVvsGF_RNAseq_Metadata.tsv", sep='\t', header=TRUE)
+
+
+#Subset fish columns
+newdata<-exp_data[,6:length(colnames(exp_data))]
+# normalize
+norm_data<-log10(newdata+0.01)
+# Transpose and run for PCA analysis
+t.fish.pcs<-prcomp(t(norm_data), scale. = FALSE)
+
+
+
+df.pcs<-data.frame(exp_data[,1:5])
+#df.pcs<-data.frame(exp_data[,1:5])
+PC1<-t.fish.pcs$rotation[,1]
+df.pcs<-cbind(PC1, df.pcs)
+top10_genes<-head(df.pcs[order(-df.pcs$PC1),], 10)
+
+
+
+
+```
+
+In this report we explore gene expression data for 15,847 genes in 84 threespine stickleback fish. The experimental designed is summarized in Figure 1. 
+
+```{r figurename, echo=FALSE, out.width = '90%'}
+knitr::include_graphics("/Users/gerardoperez/Documents/shell/Bi610/Bi610_HW17_Fig1.png")
+```
+
+We were provided with expression data and metadata.  Our goal is to discover major sources of expression variation by performing Principal Component  Analysis (PCA), specifically which variables in the metadata show the most strongly associated with overall differences in variation and which genes contribute with this pattern. We first explored the expression data by doing a summary on the gene id, genome location and gene start at base pair as shown in Table 1.
+
+**Table 1: Summary of gene id, genome location and gene start**
+
+```{r echo=FALSE}
+
+sum<-(summary(exp_data))
+(sum[,1:3])
+
+```
+
+This gave us an idea on the nomenclature of the data and size. The gene id is an Ensemble ID with 15841 gene. They are a total of 10673 genome locations and the mean gene starts bp is 9235155. We then explored the metadata and plotted the uneven variables as shown in Figure 2.
+
+**Figure 2: Metadata uneven variables**
+
+```{r echo=FALSE}
+
+layout(t(1:3))
+plot(meta_data$Population, col=c("green", "blue"), ylab="Stickleback fish", main="Population")
+plot(meta_data$Family, ylab="Stickleback fish", main="Family")
+plot(meta_data$Sex, ylab="Stickleback fish", main="Sex")
+
+
+```
+
+
+There were more Fresh water fish in both Population and Family compared to Ocean water fish. There were more Males than Females. Furthermore, we plotted the expression data, as shown in Figure 3, but due to the magnitude of variables there was no inference, which brings why we performed PCA. 
+
+```{r, echo=FALSE}
+boxplot(newdata, xlab="RNA seq libraries", ylab="Copies per million", main="Figure 3: Plotting 84 RNA seq libraries")
+
+```
+
+Principal Component  Analysis (PCA) is used to reduce dimensionality of the data and to retain most variation in the dataset. In this report, we use R with the prccomp function which does the mathematical algorithm for us. But we first normalized the expression data by log 10 fold to maximize the variance. After running the function, we plotted the PCs  in a scree plot as shown in Figure 4. 
+```{r echo=FALSE}
+plot(t.fish.pcs, xlab="Dimensions",main="Figure 4: Scree plot")
+#screeplot(prcomp(t(norm_data), scale. = FALSE), xlab="Dimensions", type="lines")
+```
+
+The PCs contains full covariance matrix, which measure similarity, and decreases in scree plot as the number of PCs get bigger. We choose to explore the 1 to 5 PCs  since they cover the most variation.
+
+We then plotted by the loadings, which explains the most variation in the data by the directions in multidimensional space. Figure 5 shows the plot by loadings of population.
+
+**Figure 5: Loadings of population**
+
+```{r, echo=FALSE, fig.width=20, fig.height=8}
+layout(t(1:4))
+plot(t.fish.pcs$x[,1:2], col=meta_data$Population ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Population))
+plot(t.fish.pcs$x[,2:3], col=meta_data$Population ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Population))
+plot(t.fish.pcs$x[,3:4], col=meta_data$Population ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Population))
+plot(t.fish.pcs$x[,4:5], col=meta_data$Population ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Population))
+```
+
+We can see that PC1 was able to separate the points to subpopulations meaning that  this is  due to the genes that have heavy influences on PC1. The other PCs did not show separation.
+
+
+Figure 6 shows the plot by the loadings for sex which did not show any subpopulation separation. 
+
+**Figure 6: Loadings for sex**
+
+```{r, echo=FALSE,fig.width=20, fig.height=8}
+layout(t(1:4))
+plot(t.fish.pcs$x[,1:2], col=meta_data$Sex ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Sex))
+plot(t.fish.pcs$x[,2:3], col=meta_data$Sex ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Sex))
+plot(t.fish.pcs$x[,3:4], col=meta_data$Sex ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Sex))
+plot(t.fish.pcs$x[,4:5], col=meta_data$Sex ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Sex))
+```
+
+Figure  7 shows the plot by the loadings for treatment which did not show any subpopulation separation.
+
+**Figure 7: Loadings for treatment**
+
+```{r, echo=FALSE, fig.width=20, fig.height=8}
+layout(t(1:4))
+plot(t.fish.pcs$x[,1:2], col=meta_data$Treatment ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Treatment))
+plot(t.fish.pcs$x[,2:3], col=meta_data$Treatment ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Treatment))
+plot(t.fish.pcs$x[,3:4], col=meta_data$Treatment ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Treatment))
+plot(t.fish.pcs$x[,4:5], col=meta_data$Treatment ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Treatment))
+```
+
+Figure 8 shows the plot by the loadings for family which did not show any subpopulation separation.
+
+**Figure 8: Loadings for family**
+
+```{r, echo=FALSE, fig.width=20, fig.height=8}
+layout(t(1:4))
+plot(t.fish.pcs$x[,1:2], col=meta_data$Family ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Family))
+plot(t.fish.pcs$x[,2:3], col=meta_data$Family ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Family))
+plot(t.fish.pcs$x[,3:4], col=meta_data$Family ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Family))
+plot(t.fish.pcs$x[,4:5], col=meta_data$Family ,pch=20)
+legend("topright", pch=20, col=1:3, legend=levels(meta_data$Family))
+
+
+```
+
+
+We then proceeded with a histogram of loadings for the data as shown in Figure 9. 
+
+```{r echo=FALSE}
+
+gene_loadings<-t.fish.pcs$x
+hist(t.fish.pcs$x, main="Figure 9: Loadings for genes", xlab=NULL)
+
+
+
+```
+
+We can see that most of the genes have pretty small loadings which means that most of them are not explaining much variance, Only a few genes are important. We then identified the top 10 genes in population that contribute to the pattern by getting the 10 highest scores in PC1, Table 2 shows the result.
+
+**Table 2: Top 10 genes in population**
+```{r, echo=FALSE}
+
+(top10_genes)
+
+```
+
+We were able find that Population is the  most strongly associated with overall differences in variation. By the use of PCA, we separated the Population of Sticklebacks by PC1 and found 10 genes with the top 10 scores. 
+
