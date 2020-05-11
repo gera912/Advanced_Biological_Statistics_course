@@ -1,4 +1,4 @@
-The problem
+### The problem
 
 You have been asked to aid in the design of a survey to estimate the mean number of miles commuted in the Eugene-Springfield area. Lane County Transit (LTD) is planning to survey a randomly chosen collection of people with full-time work in the area, and to ask (a) where they live, and (b) how far they have to travel to get from home to work. Surveys are expensive, and they would like your help to figure out how many people to ask to achieve a reasonable level of precision. In particular, they are interested in both the mean number of miles traveled, and whether people living in one city travel significantly farther than those living in the other city.
 
