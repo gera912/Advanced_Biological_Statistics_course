@@ -1,0 +1,191 @@
+---
+title: "Homework 9: Generalized Linear Models"
+author: "Gera"
+date: "12/12/2019"
+output: html_document
+---
+
+
+In this report we used a dataset that is a subset of the CDC National Youth Tobacco Survey. This dataset consists of a survey of cigarette use in middle school and high school students by state in the US from 2000-2017. We first describe the data, then describe cigarette use by state by state, education level, gender, and year. We then describe the decline cigarette use over time. We go over the model used in this study. Additionally, answer questions such as predicting the percent of female high school students that would report cigarette use in 2019 in Utah and in New Jersey. Finally, checking the quality of these estimates by fitting the model without 2017 data and use the model to predict 2017.
+	
+To see how much we have in the dataset, we first plot the total number of students per state. Figure 1 shows how many students were surveyed per state. Alarming features that we see from the figure is that there is a discrete difference overall and 5 states do not have data. We then explore the percentage of how many students overall said yes per state as shown in Figure 2. From the figure we can see that Kentucky, Texas, and Tennessee have the highest of overall students that said yes to smoking. Also, we wanted to see how much data we have per year as shown in Figure 3. From the figure we can see that the data was not even distributed per year. Finally, we wanted to see an overall visual of the data as shown in Figure 4. From the figure we can infer that High school students have higher percentage of saying yes then middle school students. We can also see from the figure that the most recent years 2015 and above have a low percentage of yes for smoking.
+	
+To see how much cigarette, differ by state, education level, gender, and year we used a model to answer this. The model that we used was a generalized linear model using state, education level, gender, and year as predictor variables. We set the family to be a quasibinomial distribution since we want to know a yes or no answer. Table 1 shows the results of the beta coefficient estimates and their significance levels. From the table we can see that some states are not significantly associated to the outcome such as Arkansas, Louisiana, New Mexico, South Carolina and Wyoming. Keeping these could lead to overfitting the model. In addition, the predictor variables coefficient estimates, males: 0.056 with a standard error 0.0083, West Virginia: 0.086 with a standard error of 0.03, Kentucky: 0.0869 standard error of 0.03 and Louisiana: 0.050 standard error of 0.028, all have a positive estimates inferring that they have a positive effect on student smokers which means an increase probability of smoking. The year coefficients appear to have a negative effect, -0.0499 with a standard error of 0.0009, compared to the intercept suggesting with an increase a year will have decreased probability of smoking. 
+	
+We continued to use the model to find that Female high school students from Utah in 2019 which predicted to have a smoking percentage of 1.89%. With a confidence interval of 1.4% to 2.2% as shown in Table 2. Also, Female High school students from New Jersey have a smoking percentage of 4.34%. With a confidence interval of 3.8% to 4.8%. By using our model to predict year 2017 we can see how accurate our predictions are. Based off the prediction of 2017, the prediction is over dispersed meaning that model should not be trusted for predictions. Shown in Figure 5, our predictions were much lower than the actual datapoints. Our model and prediction could be a result of data not being collected evenly, such as some states and years having significant more data than others.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+
+
+library(usmap)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(tidyverse)
+library(GGally)
+#install.packages("HH")
+library(HH)
+
+cig <- read.csv("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/Youth_Tobacco_Survey_YTS_Data_subset.csv", header=T)
+
+# Sum of students for each state
+num_students <- data.frame(state=levels(cig$state),
+                           students=tapply(cig$Sample_Size, cig$state, sum))
+
+
+# sum of yes for each state
+nums_yes_sum <- data.frame(state=levels(cig$state),
+                           students=tapply(cig$Percent_Yes, cig$state, (sum)))
+
+cig$Percent_yes_ed<-as.integer(cig$Percent_Yes)/100
+nums_yes<-(cig$Percent_yes_ed)*cig$Sample_Size
+nums_no<-cig$Sample_Size - nums_yes
+cig$Percent_No<-(cig$Sample_Size - nums_yes)/cig$Sample_Size
+cig$YEAR<-cig$YEAR-1999
+
+nums_yes_length <- data.frame(state=levels(cig$state),
+                           students=tapply(cig$Percent_Yes, cig$state, (length)))
+
+nums_yes<-merge(nums_yes_sum, nums_yes_length, by="state")
+nums_yes$percent_yes<-nums_yes$students.x/(nums_yes$students.y)
+
+#nums_yes$num_students<-num_students
+
+nums_yes$students.x<-NULL
+nums_yes$students.y<-NULL
+
+
+
+```
+
+
+
+
+
+```{r echo=FALSE, warning=FALSE}
+(plot_usmap(data=num_students, values="students", color='black') +
+    scale_fill_continuous(name = "total number of students") +
+    theme(legend.position = "right")) + ggtitle("Figure 1: Total number of students per state")
+
+```
+```{r echo=FALSE}
+(plot_usmap(data=nums_yes, values="percent_yes", color='black') +
+    scale_fill_continuous(name = "Percent of students that said yes to smoking") +
+    theme(legend.position = "right")) + ggtitle("Figure 2: Percent of number of students that yes to smoking per state")
+
+``` 
+
+
+```{r echo=FALSE}
+
+cig <- read.csv("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/Youth_Tobacco_Survey_YTS_Data_subset.csv", header=T)
+hist(cig$YEAR,main = "Figure 3: Frequency of data per year", xlab = "Year")
+
+
+
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+
+cig_plot <- ggplot(cig, 
+                   mapping=aes(x=Percent_Yes, 
+                               y=log(Sample_Size))) + ggtitle("Figure 4: Sample size vs percent yes with Education, year and, gender factors") + xlab("Percent_Yes") + ylab("Sample_Size") + geom_point(aes(color=YEAR, size=Education, shape=Gender)) + theme()
+print(cig_plot)
+
+```
+
+**Table 1: Model summary**
+```{r echo=FALSE}
+
+cig <- read.csv("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/Youth_Tobacco_Survey_YTS_Data_subset.csv", header=T)
+
+# Sum of students for each state
+num_students <- data.frame(state=levels(cig$state),
+                           students=tapply(cig$Sample_Size, cig$state, sum))
+
+
+# sum of yes for each state
+nums_yes_sum <- data.frame(state=levels(cig$state),
+                           students=tapply(cig$Percent_Yes, cig$state, (sum)))
+
+cig$Percent_yes_ed<-as.integer(cig$Percent_Yes)/100
+nums_yes<-(cig$Percent_yes_ed)*cig$Sample_Size
+nums_no<-cig$Sample_Size - nums_yes
+cig$Percent_No<-(cig$Sample_Size - nums_yes)/cig$Sample_Size
+cig$YEAR<-cig$YEAR-1999
+
+mod1 <- glm(Percent_yes_ed ~ YEAR  + Education + Gender + state, data=cig, family=quasibinomial(link="probit"))
+
+#summary(mod1)
+print(summary(mod1)$coefficients)
+
+#confint(mod1)
+
+
+```
+**Table 2: 0.95 interval**
+```{r echo=FALSE, warning=FALSE}
+YEAR<-c(20,20)
+state<-c("Utah", "New Jersey")
+Gender<-c("Female", "Female")
+Education<-c("High School", "High School")
+new_dataframe<-data_frame(YEAR,state,Gender, Education)
+
+
+predict1<-predict(mod1, new_dataframe, type="response", se.fit=TRUE)
+
+#(predict1)
+
+
+
+interval(mod1, predict1 ,
+         type = c("link", "response"),
+         conf.level = 0.95)
+
+```
+```{r echo=FALSE}
+
+cig <- read.csv("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/Youth_Tobacco_Survey_YTS_Data_subset.csv", header=T)
+
+
+cig$Percent_yes_ed<-as.integer(cig$Percent_Yes)/100
+cig$nums_yes<-(cig$Percent_yes_ed)*cig$Sample_Size
+nums_no<-cig$Sample_Size - cig$nums_yes
+
+cig$Percent_No<-(cig$Sample_Size - cig$nums_yes)/cig$Sample_Size
+
+
+cig_2017_out<- subset(cig, YEAR!="2017")
+cig_2017<- subset(cig, YEAR=="2017")
+
+cig_2017_out$YEAR<-cig_2017_out$YEAR-1999
+
+
+mod2 <- glm(Percent_yes_ed ~ YEAR  + Education + Gender + state, data=cig_2017_out, family=quasibinomial(link="probit"))
+
+predicted_2017<-predict(mod2, cig_2017, type="response", se.fit=TRUE)
+
+#(predicted_2017)
+#(cig_2017$Percent_yes_ed)
+
+plot(cig_2017$Percent_yes_ed, col="green", main="Figure 5: Model comparison of 2017 data and predicted 2017", ylab="Percent yes")
+points(predicted_2017$fit, col="red")
+
+
+
+```
