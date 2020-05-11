@@ -1,6 +1,10 @@
 ### The problem
 We have gene expression data for 15,847 genes in 84 threespine stickleback fish in an experiment, summarized in this figure:
 
+![](Bi610_HW17_Fig1.png)
+
+experimental design
+
 The data files are:
 
 -	CVvsGF_RNAseq_CPM.tsv - expression data: rows are genes; columns are fish The expression data are normalized (so units are in copies per million).
