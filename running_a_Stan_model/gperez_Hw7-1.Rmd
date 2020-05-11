@@ -1,0 +1,174 @@
+---
+title: "Homework 7"
+author: "Gera"
+date: "11/25/2019"
+output: html_document
+---
+
+
+In this report we analyze a dataset of battling averages of baseball players using R. We briefly start by describing the data, run a model in Stan and interpret the results. Here we focus on typical battling average, range of variation by position, the number of right fielders having a lower battling average than the 95% quantile of pitchers and the estimated averages of Thomas Field and Prince Fielder. 
+	
+We first analyze the data by doing a summary. The summary is shown in Table 1. We can see that there is a total of 948 players through the max of PlayerNumber and a total of 9 positions through the max of PriPosNumber. To get a sense of the distribution of players for each position we did a pie chart as shown in Figure 1. We can see that there is higher number of players in the positions 1st base and Right field than the other positions. Moreover, looking at the statistics of Hits from Table 1, we can see that the minimum is 0, medium is 17, max 216, and mean is 44.3. As for AtBats, we see that the minimum is 1, medium is 78, max 683, and mean is 174. We did a plotted both Hits and AtBats through the use of a scatter plot as shown in Figure 2. We can see that the plot is linear and there are more hits at bats from 0 to 200.
+	
+To further explore statistics and define a probability model through the use of this dataset, we used Stan to run a model. To run Stan we used 1000 iterations and 3 Markov chains to describe a sequence of possible events. After running, we then extracted the thetas for each position which are the battling average. We know that the batting average follows the Beta distribution with mu and kappa, where mu is the is the average battling position and kappa is the concentration of battling position. We then plotted the typical batting average and range of variation in batting average by position as shown in Figure 3. From the figure we can infer that all the positions except for the pitcher’s have similar battling average distribution. Most positions have a batting average around 0.25 and ranges from 0.15 to 0.4. In contrast, pitchers distribution shifted to the left, where the batting average is around 0.14 and ranges from 0 to 0.3.
+
+We extracted the mu’s which is the average battling position and extracted the kappa which is the concentration of battling position. Both from the pitcher probability model and then took the mean of each. Using these values, we calculated alpha and beta. We then used alpha and beta with the use of qbeta to get the 95 quantile. Then, we plotted right fielders distribution and used 95% quantile of pitchers to make a red vertical line in the plot as shown in Figure 4. From the figure we can see that 0 right fielders have a lower batting average than the 95% quantile of pitchers. Right fielder’s distribution ranges from 0.21 to 0.31 and the 95% quantile of pitchers is 0.208.
+
+We also wanted to know estimated batting averages of Thomas Field and Prince Fielder. We went forward by first finding each players number from the dataset then use the probability model to get the battling averages. We got a batting average of 0.2443868 for Thomas Field and a batting average 0.3036147 for Prince Fielder. We then got the estimates of uncertainty by calculating the 95% credible interval and plotted them for both players as shown in Figure 5. We can see that for Thomas Field 95% of the posterior distribution falls between 0.163 and 0.337. For Prince Fielder 95% of the posterior distribution falls between 0.270 and 0.337. Which are red vertical lines in Figure 5.
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(rstan)
+setwd("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks")
+batting_data <- read.csv("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/BattingAverage.csv", header = T)
+
+
+
+
+model_1<-
+"data {
+int N;   // number of players
+int hits[N];
+int at_bats[N];
+int npos; // number of positions
+int position[N];
+}
+parameters {
+real<lower=0, upper=1> theta[N];
+real<lower=0, upper=1> mu[npos];
+real<lower=0> kappa[npos];
+}
+model {
+real alpha;
+real beta;
+hits ~ binomial(at_bats, theta);
+for (i in 1:N) {
+alpha = mu[position[i]] * kappa[position[i]];
+beta = (1 - mu[position[i]]) * kappa[position[i]];
+theta[i] ~ beta(alpha, beta);
+}
+mu ~ beta(1,1);
+kappa ~ gamma(0.1,0.1);
+}
+"
+first_fit <- stan(model_code=model_1, chains=3, iter=1000,
+data=list(N=nrow(batting_data),
+hits=batting_data$Hits,
+at_bats=batting_data$AtBats,
+npos=nlevels(batting_data$PriPos),
+position=as.numeric(batting_data$PriPos)))
+
+theta_samples <- extract(first_fit)$theta
+mu <- extract(first_fit)$mu
+kappa<-extract(first_fit)$kappa
+alpha <- mu*kappa
+beta <- (1- mu)* kappa
+#extract your thetas, use that variable that you place all your thetas into to make the following graphs
+
+x<-mean(extract(first_fit)$"mu"[,7])
+y<-mean(extract(first_fit)$"kappa"[,7])
+quan_95<-qbeta(.95, x*y, (1-x)*y)
+qbeta(.95, x*y, (1-x)*y)
+
+
+right_field<-batting_data$PriPosNumber==9
+
+```
+
+**Table 1: Summary of battling average data**
+```{r}
+summary(batting_data)
+```
+
+
+```{r}
+
+positions<-levels(batting_data$PriPos)
+FirB<-length(rownames(subset(batting_data, PriPos=="Pitcher")))
+secdB<-length(rownames(subset(batting_data, PriPos==positions[1])))
+ThirdB<-length(rownames(subset(batting_data, PriPos==positions[2])))
+Catch<-length(rownames(subset(batting_data, PriPos==positions[3])))
+Cent<-length(rownames(subset(batting_data, PriPos==positions[4])))
+Left<-length(rownames(subset(batting_data, PriPos==positions[5])))
+right<-length(rownames(subset(batting_data, PriPos==positions[6])))
+short<-length(rownames(subset(batting_data, PriPos==positions[7])))
+slices <- c(FirB, secdB, ThirdB, Catch, Cent, Left, right, short) 
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(positions, pct) # add percents to labels 
+lbls <- paste(lbls,"%",sep="") # ad % to labels 
+pie(slices,labels = lbls, col=rainbow(length(lbls)),
+   main="Figure 1:Pie Chart of Positions")
+```
+
+```{r}
+
+
+plot(batting_data$AtBats, batting_data$Hits, xlab="Bats", ylab="Hits", main="Figure 2:Bats vs Hits")
+
+```
+
+**Figure 3: battling average by position**
+```{r}
+par(mfrow=c(3,3))
+hist(theta_samples[,batting_data$PriPos=="Pitcher"], main="Pitchers", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="Catcher"], main="Catcher", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="1st Base"], main="1st Base", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="2nd Base"], main="2nd Base", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="3rd Base"], main="3rd Base", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="Shortstop"], main="Shortstop", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="Left Field"], main="Left Field", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="Center Field"], main="Center Field", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+hist(theta_samples[,batting_data$PriPos=="Right Field"], main="Right Field", xlim=c(0.1, 0.8),
+col=adjustcolor('red',0.6), xlab='batting avg', freq=FALSE)
+```
+
+
+
+```{r}
+#mu <- extract(first_fit)$mu
+#stan_hist(first_fit,pars=c('mu'))
+
+```
+
+```{r}
+
+
+hist(colMeans(theta_samples[,right_field]), main = "Figure 4:Right fielders battling average", xlab = "Right fielders battling average")
+abline(v=quan_95, col="red")
+
+```
+
+**Figure 5: Thomas Field and Prince Fielder battling averages**
+```{r}
+
+TF<-subset(batting_data, Player=="Thomas Field")$PlayerNumber 
+PF<-subset(batting_data, Player=="Prince Fielder")$PlayerNumber  
+
+
+
+
+
+
+
+
+par(mfrow=c(1,2))
+hist(theta_samples[,TF], ylim=c(0,350), main ="Thomas Field", xlab = "battling average")
+abline(v=c(0.1625136, 0.3370858), col="red")
+hist(theta_samples[,PF], ylim=c(0,350), main ="Prince Fielder", xlab = "battling average")
+abline(v=c(0.2700724, 0.3369024), col="red")
+
+```
+Player        samples
+36             36
+
