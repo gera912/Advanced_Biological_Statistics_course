@@ -1,0 +1,163 @@
+---
+title: "Homework, week 14: Simulation challenge: Group 3: Not Vampires"
+author: "Gera"
+date: "2/3/2020"
+output: html_document
+---
+
+
+
+
+
+In this report we use a survey by the non-profit group, NOT VAMPIRES, that organizes blood drives to improve blood donation turnout. We want to find which factors seem to have the strongest effect on whether or not someone decides to donate or not. Here we go over the dataset, look at the different factors, and make a model. The dataset involved 1000 people being surveyed.
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+library(usmap)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(tidyverse)
+library(GGally)
+#install.packages("HH")
+library(HH)
+library(MASS)
+library(brms)
+
+dataset<-read.csv("/Users/gerardoperez/Documents/shell/Bi610/UO_ABS/CLASS_MATERIALS/Homeworks/blood_donation.csv")
+
+
+
+bhs <- brm(Donated_Blood ~ ., data=dataset,  family=binomial, 
+           prior=c(set_prior(horseshoe(), class="b")))
+
+```
+
+
+
+
+We first looked at the data by doing a summary statistics as shown in Table 1. 
+
+**Table 1: Summary statistics on dataset**
+```{r, echo=FALSE}
+summary(dataset)
+
+
+```
+Gender, Food offered and, States, are evenly distributed within the survey. For weather, there were more people surveyed in hot, than warmer and then the least cold. For Distance away, the min was 0, the max 33, median 3 and the mean 5. Vampire Belief had a variety of ranges from “none” being the most and “definitely” being the least.  For Given blood in the past the mean was 0.31 meaning that there were more people surveyed that have not donated blood.  Finally, Donated blood mean was 0.41 meaning there were more people surveyed that have not donated blood. 
+
+
+We then explored how many people responded to donating blood by a single factor. We first explored by state as shown in Figure 1
+```{r, echo=FALSE}
+
+# Sum of students for each state
+States_donated <- data.frame(state=levels(dataset$State),
+                           students=tapply(dataset$Donated_Blood, dataset$State, sum))
+
+(plot_usmap(data=States_donated, values="students", color='black') +
+    scale_fill_continuous(name = "total number of blood donations") +
+    theme(legend.position = "right")) + ggtitle("Figure 1: Blood donation per state")
+
+
+
+```
+
+We can see that the states of Oklahoma and Montana, Mississippi, and Delaware had the most blood donations.  New York, Wyoming and California had the least donations.,
+
+
+
+```{r, echo=FALSE}
+
+Weather_donated <- data.frame(weather=levels(dataset$Weather),
+                           blood_donations=tapply(dataset$Donated_Blood, dataset$Weather, sum))
+
+ggplot(Weather_donated) +
+  aes(x = weather, y = blood_donations) +
+  geom_bar(stat="identity") + ggtitle("A: Blood donation\n by weather") -> p1
+
+
+
+
+
+#rownames(Weather_donated)<-c()
+
+
+
+
+```
+
+```{r, echo=FALSE}
+
+Vampire_belief_donations <- data.frame(Vampire_belief=levels(dataset$Vampire_Belief),
+                           blood_donations=tapply(dataset$Donated_Blood, dataset$Vampire_Belief, sum))
+#rownames(Weather_donated)<-c()
+
+
+#ggplot(Vampire_belief_donations, aes(x=blood_donations)) + geom_histogram(color="black", fill="white")
+
+ggplot(Vampire_belief_donations ) +
+  aes(x = Vampire_belief, y = blood_donations) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_bar(stat="identity") + ggtitle("B: Blood donation\n by Vampire belief")  -> p2
+
+```
+
+```{r, echo=FALSE}
+
+
+
+gender_donations <- data.frame(gender=levels(dataset$Gender),
+                           blood_donations=tapply(dataset$Donated_Blood, dataset$Gender, sum))
+
+
+ggplot(gender_donations ) +
+  aes(x = gender, y = blood_donations) +
+  geom_bar(stat="identity") + ggtitle("C: Blood donation\n by gender") -> p3
+
+
+```
+
+Then we explored by other factors: weather, vampire belief, and gender as shown in Figure 2. 
+
+**Figure 2: Blood donations by factors**
+```{r, fig.wdith=20, echo=FALSE}
+
+grid.arrange(p1, p2, p3, ncol=3)
+
+
+```
+
+Hot weather, none vampire belief and being male show to be the leading factors to donate blood. 
+
+
+To further answer which factors seem to have the strongest effect on whether or not someone decides to donate or not, we pursue this by making a model. For our model, we use brms that uses syntax to specify a wide range of complex Bayesian models. Since the response variable here is blood donation with two outcomes, we set the family to be binomial. We also use a strongly sparsifying prior, the horseshoe, due to the many regression coefficients in our model. 
+
+bhs <- brm(Donated_Blood ~ ., data=dataset,  family=binomial, 
+           prior=c(set_prior(horseshoe(), class="b")))
+           
+The model ran with 4 chains with 2000 iterations. 
+
+From running the model we use coefficient plot to visualize the credible intervals as shown in Figure 3. 
+
+**Figure 3: 95% credible intervals**
+```{r,fig.width=8, echo=FALSE}
+
+stanplot(bhs)
+
+```
+
+From the plot, we can see that being Male, Food offered, Hot weather, and given blood in the past all have a positive effects with a credible interval that does not contain 0, meaning that there’s a statistically significant positive relationship to donating blood.  Distance away, vampire belief unlikely, vampire belief unsure, all have negative effects with a credible interval that does not contain 0, meaning that there’s a statistically significant negative relationship to donating blood.
+
+
+By taking the summary of the model, as shown in Table 2, we can see that the coefficient estimates. 
+
+**Table 2: Model summary**
+```{r, echo=FALSE, warning=FALSE}
+
+
+summary(bhs)
+
+```
+
+The largest coefficient estimates with strongest effects are,  Food offered: 2.48, then Given Blood_Past Yes:1.87, Male:1.41,Hot Weather: 1.0. In conclusion, according to these results, the NOT VAMPIRES group should do blood drives in the Summer in a sports venue with free wings at the same spot frequently to get better turn outs. 
+
