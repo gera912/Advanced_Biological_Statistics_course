@@ -1,0 +1,211 @@
+---
+title: "Homework, week 11: Survival analysis"
+author: "Gera Perez"
+date: "1/15/2020"
+output: html_document
+---
+
+
+In this report we investigate and explore the dataset, veteran, that is part of the survival package in R. The dataset consists of 137 males with advanced inoperable lung cancer. We took a look at the dataset by doing a summary of statistics, as shown in Table 1. We can see that two treatments, standard and test (chemotherapy), are pretty close in sample sizes 69 and 68. In the dataset, there are 4 cell types: squamous, small cell, adeno  and large cell. Small cell consisting of the most, then squamous followed by an equal amount of data between adeno and large cell. Also, the dataset consists of prior treatment, where there is 2 fold less data of prior therapy to no prior therapy. In addition, the range of age of for these individual ranges from 34 to 87 years where the median is 62 years. Finally, time is measure in days, 1 day being the min and 999 being the max.
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, echo=FALSE, warning=FALSE, message=FALSE)
+library(survival)
+library(brms)
+library(ggplot2)
+library(ranger)
+library(survival)
+library(ranger)
+library(ggplot2)
+library(dplyr)
+library(ggfortify)
+library(ggfortify)
+library(gridExtra)
+data(veteran)
+
+
+#statuts=1 unk
+# status= still ali
+
+
+
+head(veteran)
+
+
+plot(survfit(Surv(time, status) ~ 1, data = veteran))
+#summary(survfit(Surv(time, status) ~ 1, data = veteran))
+
+
+
+
+autoplot(survfit(Surv(time, status) ~ trt, data=veteran))
+
+
+
+
+weifit <- survreg(Surv(time, status) ~trt+ celltype + karno + diagtime + age, data=veteran, dist="weibull")
+
+cox <- coxph(Surv(time, status) ~ trt + celltype + karno + diagtime + age + prior , data = veteran)
+
+#summary(cox)
+
+#summary(weifit)   
+
+
+
+#veteran$censored <- ifelse(veteran$status == 1, 'right', 'none')
+
+#brmfit <- brm(time | cens(censored) ~ trt + celltype + karno + diagtime + age, data=veteran, family="weibull")
+#summary(brmfit) 
+
+
+veteran$trt<-as.character(veteran$trt)
+veteran$trt[veteran$trt=="1"]<-"standard"
+veteran$trt[veteran$trt=="2"]<-"chemotherapy"
+
+veteran$trt<-as.factor(veteran$trt)
+
+veteran$prior<-as.character(veteran$prior)
+veteran$prior[veteran$prior=="0"]<-"no"
+veteran$prior[veteran$prior=="10"]<-"yes"
+
+veteran$prior<-as.factor(veteran$prior)
+
+
+vet_plot <- ggplot(veteran, 
+                   mapping=aes(x=time, 
+                               y=karno)) + ggtitle("Figure 1:") + geom_point(aes(color=celltype, size=diagtime, shape=trt)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+print(vet_plot)
+tail(veteran)
+
+
+test.trt<-subset(veteran, trt=="chemotherapy")
+standard.trt<-subset(veteran, trt=="standard")
+
+```
+```{r}
+fit<-survfit(Surv(time, status) ~ 1, data=veteran)
+#summary(fit, times = c(1,20(1:10)))
+
+#length(fit$time)
+#summary(fit)
+
+```
+
+**Table 1: Dataset statistics summary**
+
+```{r}
+summary(veteran)
+
+```
+
+
+Using R we first produce Kaplan-meir model which estimates the probability of survival over time. We used the formula, Surv(futime, status) ~ 1 within the survfit function. We plot these estimates in Figure 1. From Figure 1 we can see that the survival rate at 50% is around 70 days. To get more of an approximation of survival rates we then did a summary of our Kaplan-meir model as shown in Table 2. We can see here after 30 days the survival rate is at 0.70, 60 days is at 0.54, 180 days is at 0.222 and at 360 days is at 0.09. 
+
+**Figure 1: Kaplan-meir model plot**
+
+```{r}
+
+autoplot(survfit(Surv(time, status) ~ 1, data = veteran))
+```
+
+
+**Table 2: Kaplan-meir model summary**
+```{r}
+
+km_fit <- survfit(Surv(time, status) ~ 1, data=veteran)
+#summary(km_fit, times = c(1,30,60,90,120,150,180,210,240,270,300,330, 360, 36*(1:10)))
+summary(km_fit, times = c(1,(30*(1:12)),450, 540, 630,720, 810,900))
+
+```
+
+We then looked at a survival curves by treatments as shown in Figure 2. From Figure 2 we can see some overlap but patients with chemotherapy patients have a longer time of survival, past 500 days compared to a year. 
+
+**Figure 2: Survival curve by treatment**
+
+```{r}
+
+
+autoplot(survfit(Surv(time, status) ~ trt, data=veteran))
+#autoplot(survfit(Surv(time, status) ~ age, data=veteran))
+
+```
+
+In addition, we looked at if age has in impact on survival rate. Figure 3 shows the age survival rate, from this figure we can infer that patients under 62 have a higher chance of surviving for more than year. 
+
+
+**Figure 3: Survival curve by age**
+
+```{r}
+vet <- mutate(veteran, age = ifelse((age < 62), "Low_62", "Over_62"))
+
+autoplot(survfit(Surv(time, status) ~ age, data=vet))
+
+````
+
+Furthermore, we also looked if prior therapy has an impact on survival rate. Figure 4 shows that prior treatment does make a slight difference in survival rate.
+
+
+**Figure 4: Survival curve by prior treatment**
+
+```{r}
+
+autoplot(survfit(Surv(time, status) ~ prior, data=veteran))
+
+```
+
+
+Finally, we then wanted to see which cell type has the types have the best survival rates, from Figure 5, we can see that squamous then large cells have the higher survival rates out of the 4. 
+
+
+**Figure 5: Survival curve by cell type**
+
+```{r}
+
+
+autoplot(survfit(Surv(time, status) ~ celltype, data=veteran))
+
+```
+
+We also used a Cox Proportional Hazards Model to incorporate all of the covariates in the data set. Table 3 shows a summary of our cox model. First we can see that the p-value for likelihood, Wald, and score are significant, meaning that the model is significant. From the summary we can see that Karnofsky performance score, had the most significance followed by adeno cell then the small cell. All other covariates failed to be significant. The Karnofsky performance score has a p-value of 4.82e-09 with a hazard ratio of 0.969079 indicating a strong relationship between karnofsky score and decrease risk of death. Karnofsky performance score has a lower 95% bound of 0.9589 and upper 95% bound of 0.9793. Where adeno cell has a p-value of 9.05e-05 with a hazard rate of 3.241809  and small cell has a p-value of 0.00253 with a hazard rate of 2.291767 meaning both cells have a higher risk of death. 
+
+**Table 3: Cox Proportional Hazards Model summary**
+
+```{r}
+
+cox_model <- coxph(Surv(time, status) ~ trt + celltype + karno+ diagtime + age + prior , data = vet)
+summary(cox_model)
+
+
+
+```
+
+Finally we plotted Kaplan-meir model vs Cox Proportional Hazards Model as shown in Figure 6. Both models look to have the same trend. 
+
+**Figure 6: Kaplan-meir model vs Cox Proportional Hazards Model**
+```{r}
+
+
+cox <- coxph(Surv(time, status) ~ trt + celltype + karno+ diagtime + age + prior , data = vet)
+cox_fit <- survfit(cox)
+
+
+kmi <- rep("KM",length(km_fit$time))
+km_df <- data.frame(km_fit$time,km_fit$surv,kmi)
+names(km_df) <- c("Time","Surv","Model")
+
+coxi <- rep("Cox",length(cox_fit$time))
+cox_df <- data.frame(cox_fit$time,cox_fit$surv,coxi)
+names(cox_df) <- c("Time","Surv","Model")
+
+
+
+
+
+
+plot_df <- rbind(km_df,cox_df)
+
+p <- ggplot(plot_df, aes(x = Time, y = Surv, color = Model))
+p + geom_line()
+
+```
